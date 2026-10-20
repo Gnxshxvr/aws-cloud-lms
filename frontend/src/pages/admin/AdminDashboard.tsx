@@ -63,8 +63,15 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
-              to="/admin/users"
+              to="/admin/courses"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition-colors"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Course Management</span>
+            </Link>
+            <Link
+              to="/admin/users"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs backdrop-blur-md transition-colors border border-white/10"
             >
               <Users className="w-4 h-4" />
               <span>Manage User Accounts</span>

@@ -21,14 +21,51 @@ export const courseService = {
     return res.data;
   },
 
+  // Get faculty list
+  getFacultyList: async (): Promise<{ success: boolean; faculty: Array<{ id: number; full_name: string; email: string; department?: string }> }> => {
+    const res = await api.get('/courses/faculty-list');
+    return res.data;
+  },
+
   // Create new course
   createCourse: async (data: {
     course_code: string;
     course_name: string;
     department?: string;
     description?: string;
+    faculty_id?: number;
   }): Promise<{ success: boolean; message: string; course: Course }> => {
     const res = await api.post('/courses', data);
+    return res.data;
+  },
+
+  // Update course
+  updateCourse: async (
+    id: number | string,
+    data: {
+      course_code?: string;
+      course_name?: string;
+      department?: string;
+      description?: string;
+      faculty_id?: number;
+    }
+  ): Promise<{ success: boolean; message: string; course: Course }> => {
+    const res = await api.put(`/courses/${id}`, data);
+    return res.data;
+  },
+
+  // Delete course
+  deleteCourse: async (id: number | string): Promise<{ success: boolean; message: string }> => {
+    const res = await api.delete(`/courses/${id}`);
+    return res.data;
+  },
+
+  // Unenroll student from course
+  unenrollStudent: async (
+    courseId: number | string,
+    studentId: number | string
+  ): Promise<{ success: boolean; message: string }> => {
+    const res = await api.delete(`/courses/${courseId}/students/${studentId}`);
     return res.data;
   },
 

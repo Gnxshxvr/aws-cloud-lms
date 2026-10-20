@@ -35,6 +35,7 @@ export const Sidebar: React.FC = () => {
 
   const adminLinks: NavItem[] = [
     { to: '/admin/dashboard', label: 'Overview & Stats', icon: LayoutDashboard },
+    { to: '/admin/courses', label: 'Course Management', icon: BookOpen },
     { to: '/admin/users', label: 'User Management', icon: Users },
     { to: '/admin/submissions', label: 'Submissions Oversight', icon: FileCheck2 },
     { to: '/admin/infrastructure', label: 'AWS Infrastructure', icon: Server },

@@ -10,6 +10,15 @@ const createCourseSchema = z.object({
   course_name: z.string().min(3, 'Course name is required'),
   department: z.string().default('Computer Science'),
   description: z.string().optional().default(''),
+  faculty_id: z.number().optional(),
+});
+
+const updateCourseSchema = z.object({
+  course_code: z.string().min(2).optional(),
+  course_name: z.string().min(3).optional(),
+  department: z.string().optional(),
+  description: z.string().optional(),
+  faculty_id: z.number().optional(),
 });
 
 const FIRST_NAMES = [
@@ -143,6 +152,11 @@ export class CourseController {
         return;
       }
 
+      let assignedFacultyId = user.id;
+      if (user.role === 'admin' && data.faculty_id) {
+        assignedFacultyId = data.faculty_id;
+      }
+
       const insertRes = await db.query(
         `INSERT INTO courses (course_code, course_name, department, description, faculty_id)
          VALUES ($1, $2, $3, $4, $5)
@@ -152,11 +166,11 @@ export class CourseController {
           data.course_name.trim(),
           data.department.trim(),
           data.description?.trim() || '',
-          user.id,
+          assignedFacultyId,
         ]
       );
 
-      await logger.info(`Faculty ${user.email} created new course: ${data.course_code} - ${data.course_name}`);
+      await logger.info(`${user.role === 'admin' ? 'Admin' : 'Faculty'} ${user.email} created new course: ${data.course_code} - ${data.course_name}`);
 
       res.status(201).json({
         success: true,
@@ -515,6 +529,160 @@ export class CourseController {
         already_enrolled: alreadyEnrolledCount,
         students: processedStudents,
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Update course details (Admin or course Faculty)
+   */
+  static async updateCourse(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const db = getDb();
+      const user = req.user!;
+      const { id } = req.params;
+      const data = updateCourseSchema.parse(req.body);
+
+      const courseRes = await db.query(`SELECT * FROM courses WHERE id = $1`, [id]);
+      if (courseRes.rowCount === 0) {
+        res.status(404).json({ success: false, message: 'Course not found.' });
+        return;
+      }
+      const course = courseRes.rows[0];
+
+      if (user.role === 'faculty' && course.faculty_id !== user.id) {
+        res.status(403).json({ success: false, message: 'Access denied. You can only edit your own courses.' });
+        return;
+      }
+
+      // Check unique course code if changed
+      if (data.course_code && data.course_code.toUpperCase() !== course.course_code) {
+        const exist = await db.query(`SELECT id FROM courses WHERE course_code = $1 AND id != $2`, [
+          data.course_code.trim().toUpperCase(),
+          id,
+        ]);
+        if (exist.rowCount > 0) {
+          res.status(400).json({ success: false, message: `Course code ${data.course_code} is already in use.` });
+          return;
+        }
+      }
+
+      const updatedCode = data.course_code ? data.course_code.trim().toUpperCase() : course.course_code;
+      const updatedName = data.course_name ? data.course_name.trim() : course.course_name;
+      const updatedDept = data.department !== undefined ? data.department.trim() : course.department;
+      const updatedDesc = data.description !== undefined ? data.description.trim() : course.description;
+      const updatedFacultyId = (user.role === 'admin' && data.faculty_id !== undefined) ? data.faculty_id : course.faculty_id;
+
+      await db.query(
+        `UPDATE courses 
+         SET course_code = $1, course_name = $2, department = $3, description = $4, faculty_id = $5, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $6`,
+        [updatedCode, updatedName, updatedDept, updatedDesc, updatedFacultyId, id]
+      );
+
+      const result = await db.query(
+        `SELECT c.*, u.full_name as faculty_name, u.email as faculty_email
+         FROM courses c
+         LEFT JOIN users u ON c.faculty_id = u.id
+         WHERE c.id = $1`,
+        [id]
+      );
+
+      await logger.info(`User ${user.email} (${user.role}) updated course ${course.course_code} -> ${updatedCode}`);
+
+      res.json({
+        success: true,
+        message: 'Course updated successfully.',
+        course: result.rows[0],
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Delete course (Admin or course Faculty)
+   */
+  static async deleteCourse(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const db = getDb();
+      const user = req.user!;
+      const { id } = req.params;
+
+      const courseRes = await db.query(`SELECT * FROM courses WHERE id = $1`, [id]);
+      if (courseRes.rowCount === 0) {
+        res.status(404).json({ success: false, message: 'Course not found.' });
+        return;
+      }
+      const course = courseRes.rows[0];
+
+      if (user.role === 'faculty' && course.faculty_id !== user.id) {
+        res.status(403).json({ success: false, message: 'Access denied. You can only delete your own courses.' });
+        return;
+      }
+
+      // Clean up enrollments
+      await db.query(`DELETE FROM course_enrollments WHERE course_id = $1`, [id]);
+
+      // Delete the course
+      await db.query(`DELETE FROM courses WHERE id = $1`, [id]);
+
+      await logger.info(`User ${user.email} (${user.role}) deleted course ${course.course_code} (${course.course_name})`);
+
+      res.json({
+        success: true,
+        message: `Course ${course.course_code} deleted successfully.`,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Unenroll student from course (Admin or course Faculty)
+   */
+  static async unenrollStudent(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const db = getDb();
+      const user = req.user!;
+      const { id, studentId } = req.params;
+
+      const courseRes = await db.query(`SELECT * FROM courses WHERE id = $1`, [id]);
+      if (courseRes.rowCount === 0) {
+        res.status(404).json({ success: false, message: 'Course not found.' });
+        return;
+      }
+      const course = courseRes.rows[0];
+
+      if (user.role === 'faculty' && course.faculty_id !== user.id) {
+        res.status(403).json({ success: false, message: 'Access denied.' });
+        return;
+      }
+
+      await db.query(`DELETE FROM course_enrollments WHERE course_id = $1 AND student_id = $2`, [id, studentId]);
+
+      await logger.info(`User ${user.email} removed student ID ${studentId} from course ${course.course_code}`);
+
+      res.json({
+        success: true,
+        message: 'Student removed from course roster.',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Get list of faculty members (for assignment dropdown)
+   */
+  static async getFacultyList(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const db = getDb();
+      const result = await db.query(
+        `SELECT id, full_name, email, department FROM users WHERE role = 'faculty' AND (is_active = 1 OR is_active = true) ORDER BY full_name ASC`
+      );
+      res.json({ success: true, faculty: result.rows });
     } catch (err) {
       next(err);
     }

@@ -23,6 +23,7 @@ import { FacultySubmissionsView } from './pages/faculty/FacultySubmissionsView';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { AdminCourses } from './pages/admin/AdminCourses';
 import { AdminUsers } from './pages/admin/AdminUsers';
 import { AdminSubmissions } from './pages/admin/AdminSubmissions';
 import { AdminInfrastructure } from './pages/admin/AdminInfrastructure';
@@ -168,6 +169,14 @@ export const App: React.FC = () => {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/courses"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminCourses />
                 </ProtectedRoute>
               }
             />

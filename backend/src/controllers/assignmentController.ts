@@ -374,7 +374,7 @@ export class AssignmentController {
   static async send24hReminders(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const count = await EmailService.notify24hDeadlineReminder(parseInt(id, 10));
+      const count = await EmailService.notify24hDeadlineReminder(parseInt(id as string, 10));
 
       res.json({
         success: true,
