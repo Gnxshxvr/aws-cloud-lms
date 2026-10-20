@@ -58,19 +58,24 @@ class SqliteAdapter implements DbClient {
 
   query<T = any>(sql: string, params: any[] = []): Promise<QueryResult<T>> {
     return new Promise((resolve, reject) => {
-      // Convert $1, $2 to ? for sqlite
-      let normalizedSql = sql.replace(/\$(\d+)/g, '?');
+      // Expand $1, $2, etc. properly into positional ? parameters for SQLite
+      const expandedParams: any[] = [];
+      const normalizedSql = sql.replace(/\$(\d+)/g, (_, indexStr) => {
+        const index = parseInt(indexStr, 10) - 1;
+        expandedParams.push(params[index]);
+        return '?';
+      });
 
-      // Check if it's a SELECT query
-      const isSelect = /^\s*SELECT/i.test(normalizedSql);
+      // Check if it's a SELECT query or PRAGMA or EXPLAIN
+      const isSelect = /^\s*(SELECT|PRAGMA|EXPLAIN)/i.test(normalizedSql);
 
       if (isSelect) {
-        this.db.all(normalizedSql, params, (err, rows: any[]) => {
+        this.db.all(normalizedSql, expandedParams, (err, rows: any[]) => {
           if (err) return reject(err);
           resolve({ rows: (rows || []) as T[], rowCount: (rows || []).length });
         });
       } else {
-        this.db.run(normalizedSql, params, function (this: sqlite3.RunResult, err) {
+        this.db.run(normalizedSql, expandedParams, function (this: sqlite3.RunResult, err) {
           if (err) return reject(err);
           // If INSERT with RETURNING or just need changes
           resolve({ rows: [{ id: this.lastID }] as any[], rowCount: this.changes });

@@ -8,9 +8,14 @@ Parameters:
     Description: 'Deployment environment name'
 
   KeyName:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: 'Name of an existing EC2 KeyPair for SSH access'
+    Type: String
     Default: ''
+    Description: 'Optional: Name of an existing EC2 KeyPair for SSH access (leave empty if using browser-based EC2 Instance Connect)'
+
+  LatestUbuntuAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id'
+    Description: 'SSM Parameter path for latest official Ubuntu 22.04 LTS AMI (auto-resolves in any AWS region)'
 
   DBUsername:
     Type: String
@@ -23,6 +28,25 @@ Parameters:
     MinLength: 8
     Description: 'Master database password for Amazon RDS PostgreSQL'
     Default: 'PortalSecurePass2026!'
+
+  InstanceType:
+    Type: String
+    Default: 't3.micro'
+    AllowedValues:
+      - 't3.micro'
+      - 't3.small'
+      - 't2.micro'
+    Description: 'EC2 Instance Type (t3.micro is AWS Free Tier eligible)'
+
+  DBBackupRetentionPeriod:
+    Type: Number
+    Default: 1
+    MinValue: 0
+    MaxValue: 35
+    Description: 'Automated backup retention days (AWS Free Tier allows max 1 day; set to 0 to disable backups)'
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, '']]
 
 Resources:
   # =========================================================================
@@ -244,7 +268,7 @@ Resources:
       MultiAZ: false
       PubliclyAccessible: false
       StorageType: 'gp3'
-      BackupRetentionPeriod: 7
+      BackupRetentionPeriod: !Ref DBBackupRetentionPeriod
       DeleteAutomatedBackups: true
       DeletionProtection: false
       Tags:
@@ -258,8 +282,9 @@ Resources:
     Type: AWS::EC2::Instance
     DependsOn: PostgresRDSInstance
     Properties:
-      InstanceType: 't3.small'
-      ImageId: 'ami-0c7217cdde317cfec' # Ubuntu 22.04 LTS (us-east-1 reference)
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestUbuntuAmiId
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref 'AWS::NoValue']
       SubnetId: !Ref PublicSubnet1
       SecurityGroupIds: [!Ref WebServerSecurityGroup]
       IamInstanceProfile: !Ref AppInstanceProfile

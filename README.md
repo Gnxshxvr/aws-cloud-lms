@@ -1,6 +1,32 @@
-# AWS Student Submission Portal
+# 🎓 AWS Cloud LMS — Student Submission & Grading Portal
 
-A secure, responsive, full-stack **Student Submission Portal** designed for cloud deployment on **Amazon Web Services (AWS)**. The application handles student deliverables, faculty grading workflows, administrator platform oversight, and stores all uploaded files securely in **Amazon S3** with metadata tracked in **Amazon RDS for PostgreSQL**.
+<p align="center">
+  <img src="https://img.shields.io/badge/AWS-Amazon%20Web%20Services-FF9900?logo=amazon-aws&logoColor=white&style=for-the-badge" alt="AWS" />
+  <img src="https://img.shields.io/badge/React%2019-20232A?logo=react&logoColor=61DAFB&style=for-the-badge" alt="React 19" />
+  <img src="https://img.shields.io/badge/Node.js%2022%20LTS-339933?logo=nodedotjs&logoColor=white&style=for-the-badge" alt="Node.js 22" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white&style=for-the-badge" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Amazon%20S3-569A31?logo=amazons3&logoColor=white&style=for-the-badge" alt="Amazon S3" />
+  <img src="https://img.shields.io/badge/Amazon%20RDS-527FFF?logo=amazonrds&logoColor=white&style=for-the-badge" alt="Amazon RDS" />
+  <img src="https://img.shields.io/badge/Free--Tier%20Ready-success?style=for-the-badge" alt="Free Tier" />
+</p>
+
+<p align="center">
+  <b>A production-ready, cloud-native Learning Management & Student Submission Portal built for Amazon Web Services (AWS).</b><br />
+  Handles assignments, real-time grading workflows, role-based access, encrypted file uploads via <b>Amazon S3 Presigned URLs</b>, and dual-mode database support (<b>Amazon RDS PostgreSQL</b> with local <b>SQLite fallback</b>).
+</p>
+
+---
+
+## 🌟 Highlights & Features
+
+- ⚡ **Full-Stack Cloud-Native**: React 19 SPA powered by Vite, Tailwind CSS, Lucide icons, and Node.js 22 LTS Express API with TypeScript.
+- 🗄️ **Smart Dual-Engine Database**: Runs seamlessly on **Amazon RDS PostgreSQL** in production, with seamless zero-cost **SQLite fallback** for local testing or ultra-low credit budgets.
+- 🪣 **Secure Amazon S3 Storage**: Student deliverables (PDFs, ZIPs, Docs) and faculty reference materials stream directly via private AWS IAM Presigned URLs.
+- 🛡️ **Role-Based Access Control (RBAC)**: Dedicated, secured workflows for **Students**, **Faculty**, and **Administrators** with instant 1-click persona switching.
+- 📜 **Infrastructure-as-Code (IaC)**: Deploy with AWS CloudFormation templates in minutes.
+- 📊 **Observability**: Live Amazon CloudWatch logging (`/aws/student-portal`) and built-in system health inspection.
+- 💸 **100% Free-Tier Friendly**: Optimized to run entirely within the AWS Free Tier ($0/month) on `t3.micro`.
 
 ---
 
@@ -8,228 +34,212 @@ A secure, responsive, full-stack **Student Submission Portal** designed for clou
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Tier (Browser)"]
+    subgraph Client ["Client Layer (Browser)"]
         UI["React 19 + TypeScript + Tailwind CSS\n(Single-Page App)"]
     end
 
     subgraph AWS ["Amazon Web Services (AWS)"]
         subgraph Compute ["Compute Tier (Amazon EC2 / VPC)"]
-            NGINX["Nginx Web Server\n(Port 80/443 SSL)"]
-            API["Node.js Express REST API\n(TypeScript & PM2)"]
-            IAM["AWS IAM Role\n(Least-Privilege Policy)"]
+            NGINX["Nginx Web Server\n(Reverse Proxy & Static SPA Hosting)"]
+            API["Node.js Express REST API\n(TypeScript & PM2 Service)"]
+            IAM["AWS IAM Instance Profile\n(Least-Privilege Policy)"]
         end
 
         subgraph Storage ["Storage & Database Tier"]
-            S3["Amazon S3 Bucket\n(Encrypted Deliverables & Reference Files)"]
-            RDS[("Amazon RDS PostgreSQL\n(User, Assignment, Submission Metadata)")]
+            S3["Amazon S3 Private Bucket\n(Encrypted Deliverables & Reference Files)"]
+            RDS[("Amazon RDS PostgreSQL / SQLite\n(Courses, Submissions, Roster, Metadata)")]
         end
 
-        subgraph Observability ["Observability"]
+        subgraph Monitoring ["Observability"]
             CW["Amazon CloudWatch Logs\n(/aws/student-portal)"]
         end
     end
 
-    UI -->|"HTTPS / REST API"| NGINX
-    NGINX -->|"Reverse Proxy"| API
+    UI -->|"HTTP / REST API"| NGINX
+    NGINX -->|"Local Reverse Proxy :5000"| API
     API -->|"AWS SDK v3 (IAM Authenticated)"| S3
     API -->|"SQL Connection Pool"| RDS
-    API -->|"Structured Logs"| CW
-    UI -.->|"Direct S3 Presigned Download"| S3
+    API -->|"Structured Audit Logs"| CW
+    UI -.->|"Direct S3 Presigned Upload/Download"| S3
 ```
 
 ---
 
-## 🛠️ Technology Stack
-
-### Frontend
-- **Framework:** React 19 with Vite & TypeScript
-- **Styling:** Tailwind CSS with custom glassmorphism and modern UI components
-- **Routing:** React Router DOM (v7) with server-side authorized route guards
-- **API Client:** Axios with JWT request/response interceptors
-- **Icons:** Lucide React
-
-### Backend
-- **Runtime:** Node.js 22 LTS with Express.js (TypeScript)
-- **Database Engine:** Amazon RDS for PostgreSQL (with auto-fallback to local SQLite for instant zero-dependency testing)
-- **AWS SDK:** AWS SDK for JavaScript v3 (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `@aws-sdk/client-cloudwatch-logs`)
-- **Authentication:** JSON Web Tokens (JWT) & bcrypt password hashing
-- **Validation:** Zod schemas and centralized error handling
-
-### AWS Infrastructure
-- **Amazon EC2:** Hosts Nginx reverse proxy and PM2 Node.js backend
-- **Amazon S3:** Private bucket with Server-Side Encryption (SSE-S3), CORS, and Presigned URLs
-- **Amazon RDS for PostgreSQL:** Relational database for relational metadata
-- **AWS IAM:** EC2 Instance Profile with least-privilege IAM policies
-- **Amazon CloudWatch:** Real-time log streaming and audit activity tracking
-
----
-
-## 👥 User Roles & Permissions
+## 👥 User Roles & Capabilities
 
 | Feature | Student | Faculty | Administrator |
 | :--- | :---: | :---: | :---: |
-| Self-Registration | ✅ (Public) | ❌ (Admin-provisioned) | ❌ (Env / Seeded) |
-| View Published Assignments & Deadlines | ✅ | ✅ | ✅ |
+| Self-Registration & Profile Management | ✅ | ❌ *(Admin-provisioned)* | ❌ *(Pre-seeded)* |
+| Browse Active Courses & Deadlines | ✅ | ✅ | ✅ |
 | Upload & Submit Assignment Deliverables | ✅ | ❌ | ❌ |
 | Download Own Submitted Deliverables | ✅ | ✅ | ✅ |
 | Create, Edit & Close Course Assignments | ❌ | ✅ | ✅ |
-| Upload Assignment Reference Files to S3 | ❌ | ✅ | ✅ |
-| Review Student Submissions for Course | ❌ | ✅ | ✅ |
-| Record Marks & Written Feedback | ❌ | ✅ | ✅ |
-| Control Grade Release (Draft vs. Published) | ❌ | ✅ | ✅ |
-| User Account Management (Activate / Deactivate) | ❌ | ❌ | ✅ |
-| System Health & CloudWatch Diagnostics | ❌ | ❌ | ✅ |
+| Upload Faculty Reference Files to S3 | ❌ | ✅ | ✅ |
+| Review Student Submissions & Download Work | ❌ | ✅ | ✅ |
+| Record Marks, Written Feedback & Release Grades | ❌ | ✅ | ✅ |
+| Student Roster & User Account Management | ❌ | ❌ | ✅ |
+| Cloud Infrastructure Diagnostics & Health Status | ❌ | ❌ | ✅ |
 
 ---
 
-## 🔑 Pre-Seeded Demo Accounts
+## 🔑 Pre-Seeded Instant Demo Accounts
 
-For immediate evaluation, the database is pre-seeded with realistic courses, deliverables, and submissions:
+For instant evaluation without creating accounts, the database is pre-seeded with sample courses, assignments, and test accounts:
 
-| Persona | Email | Password | Role Description |
+| Role | Email | Password | Persona Details |
 | :--- | :--- | :--- | :--- |
-| **Student** | `student@portal.edu` | `StudentPassword123!` | Alex Rivera (STU-2026-001) |
-| **Faculty** | `faculty@portal.edu` | `FacultyPassword123!` | Dr. Alan Turing (Computer Science) |
-| **Administrator** | `admin@portal.edu` | `AdminPassword123!` | System Administrator |
+| 🧑‍🎓 **Student** | `student@portal.edu` | `StudentPassword123!` | Alex Rivera (STU-2026-001) |
+| 👨‍🏫 **Faculty** | `faculty@portal.edu` | `FacultyPassword123!` | Dr. Alan Turing (Computer Science) |
+| 🛡️ **Administrator** | `admin@portal.edu` | `AdminPassword123!` | System Administrator |
 
-> 💡 **Quick Switcher:** You can switch between roles in 1-click using the **Role Switcher** in the top navigation bar.
+> 💡 **Tip:** Use the **Role Switcher** in the navigation bar to toggle between personas in 1-click.
 
 ---
 
-## 🚀 Local Development Quickstart
+## 🚀 Deployment Options on AWS
 
-The application is engineered to run out-of-the-box locally without requiring active AWS credentials or local PostgreSQL:
+### Option A: Ultra-Minimal & Free-Tier Stack *(Recommended for Low Credits)*
 
-### 1. Start the Backend Server
+Saves **80–90% of AWS costs** by running on a single Free-Tier `t3.micro` instance using the built-in SQLite engine and Amazon S3. Deploys in ~90 seconds!
+
+1. Open **[AWS CloudFormation](https://console.aws.amazon.com/cloudformation)**.
+2. Click **Create stack** → **With new resources (standard)**.
+3. Upload [`infrastructure/minimal-cloudformation.yaml`](./infrastructure/minimal-cloudformation.yaml).
+4. Leave `KeyName` empty (use browser-based **EC2 Instance Connect**).
+5. Acknowledge IAM capabilities and click **Submit**.
+6. When `CREATE_COMPLETE` appears, grab your `EC2PublicIP` and `S3BucketName` from the **Outputs** tab.
+
+---
+
+### Option B: Full Enterprise Cloud Stack
+
+Provisions a complete enterprise architecture including **Amazon RDS (PostgreSQL)**, isolated DB subnets, **Amazon CloudWatch Logs**, S3, VPC, and EC2.
+
+1. In **AWS CloudFormation**, upload [`infrastructure/cloudformation.yaml`](./infrastructure/cloudformation.yaml).
+2. Set your `DBPassword` (e.g. `PortalSecurePass2026!`).
+3. Set `DBBackupRetentionPeriod` to `1` (Free Tier maximum).
+4. Acknowledge IAM capabilities and click **Submit** (~10–12 minutes).
+
+---
+
+### Server Setup on the EC2 Instance
+
+Once connected to your EC2 instance via **EC2 Instance Connect** or SSH:
+
 ```bash
+# 1. Install Node.js 22 LTS, PM2 & Nginx
+sudo apt-get update -y
+sudo apt-get install -y curl git nginx build-essential
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+sudo apt-get install -y nodejs
+sudo npm install -g pm2 tsx
+
+# 2. Clone the repository
+sudo mkdir -p /var/www/student-portal
+sudo chown -R ubuntu:ubuntu /var/www/student-portal
+git clone https://github.com/Gnxshxvr/aws-cloud-lms.git /var/www/student-portal
+cd /var/www/student-portal
+```
+
+#### Configure `.env`:
+```bash
+nano /var/www/student-portal/backend/.env
+```
+```env
+PORT=5000
+NODE_ENV=production
+CLIENT_URL=http://<YOUR_EC2_PUBLIC_IP>
+
+# Database Configuration (Choose postgres or sqlite)
+DB_TYPE=sqlite
+
+# AWS Storage Configuration (Resolved automatically via EC2 IAM Role)
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=<YOUR_S3_BUCKET_NAME>
+USE_LOCAL_STORAGE=false
+
+# CloudWatch Logging
+CLOUDWATCH_ENABLED=false
+
+# Admin Credentials
+ADMIN_EMAIL=admin@portal.edu
+ADMIN_PASSWORD=AdminPassword123!
+ADMIN_NAME=System Administrator
+JWT_SECRET=super-secret-jwt-key-student-portal-2026
+JWT_EXPIRES_IN=7d
+```
+
+#### Build and Launch:
+```bash
+# 1. Build Backend
+cd /var/www/student-portal/backend
+npm install
+npm run build
+pm2 start dist/server.js --name "student-portal-api"
+pm2 save
+pm2 startup
+
+# 2. Build Frontend
+cd /var/www/student-portal/frontend
+npm install
+npm run build
+
+# 3. Configure Nginx Reverse Proxy
+sudo cp /var/www/student-portal/infrastructure/nginx.conf /etc/nginx/sites-available/student-portal
+sudo ln -sf /etc/nginx/sites-available/student-portal /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+---
+
+## 💻 Local Development Quickstart
+
+You can run the entire portal on your local machine with zero AWS configuration required:
+
+```bash
+# 1. Start Backend API (runs on SQLite automatically)
 cd backend
 npm install
 npm run dev
-```
-*The backend server initializes on `http://localhost:5000` with the SQLite database engine and local S3 upload fallback.*
 
-### 2. Start the Frontend Application
-```bash
+# 2. In a second terminal, start the Frontend
 cd frontend
 npm install
 npm run dev
 ```
-*Access the portal at `http://localhost:5173`.*
+
+Visit **`http://localhost:5173`** in your browser.
 
 ---
 
-## ☁️ AWS Cloud Deployment Guide
+## 🔒 Security Architecture
 
-### Option 1: One-Click AWS CloudFormation Deployment (Recommended)
-
-A CloudFormation template is included in `infrastructure/cloudformation.yaml`. It automatically provisions the VPC, Subnets, Internet Gateway, Security Groups, EC2 instance, S3 Bucket, RDS PostgreSQL, IAM Roles, and CloudWatch Log Group:
-
-```bash
-aws cloudformation deploy \
-  --template-file infrastructure/cloudformation.yaml \
-  --stack-name student-portal-stack \
-  --capabilities CAPABILITY_IAM \
-  --parameter-overrides \
-      DBUsername=dbadmin \
-      DBPassword=YourSecurePassword123!
-```
-
-After deployment completes, retrieve the public IP and S3 bucket name:
-```bash
-aws cloudformation describe-stacks \
-  --stack-name student-portal-stack \
-  --query "Stacks[0].Outputs"
-```
-
----
-
-### Option 2: Step-by-Step EC2 & RDS Manual Deployment
-
-#### 1. Create S3 Bucket
-1. Open the Amazon S3 Console and create a private bucket named `aws-student-portal-<your-account-id>`.
-2. Enable **Server-Side Encryption (SSE-S3)**.
-3. Under **Permissions > CORS configuration**, add:
-```json
-[
-  {
-    "AllowedHeaders": ["*"],
-    "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
-    "AllowedOrigins": ["*"],
-    "MaxAgeSeconds": 3600
-  }
-]
-```
-
-#### 2. Provision Amazon RDS PostgreSQL
-1. Launch an Amazon RDS instance with PostgreSQL 16 (Free Tier `db.t4g.micro` or `db.t3.micro`).
-2. Attach a security group permitting inbound port `5432` from the EC2 instance's security group.
-
-#### 3. Assign IAM Role to EC2 Instance
-Create an IAM Role using the policy defined in `infrastructure/iam-policies.json` and attach it to your EC2 instance. This eliminates the need for hardcoded AWS credentials!
-
-#### 4. Bootstrap the EC2 Server
-Connect to your EC2 instance via SSH and run:
-```bash
-bash infrastructure/ec2-user-data.sh
-```
-
----
-
-## 🔒 Security Best Practices
-
-1. **Direct S3 Presigned URLs:** Files are uploaded and fetched using short-lived (15–60 min) presigned URLs signed with IAM credentials. S3 buckets remain completely private (`BlockPublicAccess: true`).
-2. **Strict Server-Side Role Enforcement:** The backend enforces user role checks on every single request using `authenticateToken` and `requireRole(...)`. Roles sent by client requests are ignored.
-3. **No Plaintext Secrets:** Passwords are cryptographically hashed using **bcrypt** with salt rounds. Secrets are managed through environment variables and IAM instance profiles.
-4. **Input Sanitization:** User inputs are strictly validated and typed using **Zod** schemas, preventing SQL injection and payload exploits.
+1. **S3 Presigned URLs**: Direct-to-browser uploads and downloads through temporary (15-min) cryptographically signed S3 URLs. Buckets block all public access.
+2. **Zero Hardcoded Secrets**: On EC2, the AWS SDK automatically queries the **Instance Metadata Service (IMDSv2)** to acquire dynamic, auto-rotating IAM credentials.
+3. **Bcrypt Password Hashing**: Passwords are salted and hashed with 10 salt rounds before persistence.
+4. **Zod Strict Validation**: All client payloads undergo type and boundary validation before reaching business logic or SQL queries.
 
 ---
 
 ## 📡 REST API Reference
 
-### Authentication (`/api/auth`)
-- `POST /api/auth/register` - Register a student account
-- `POST /api/auth/login` - Authenticate user & receive JWT token
-- `GET /api/auth/profile` - Verify current session & load profile
-
-### Assignments (`/api/assignments`)
-- `GET /api/assignments` - List assignments tailored to user role
-- `GET /api/assignments/:id` - Fetch assignment details & reference S3 download link
-- `POST /api/assignments` - Create assignment with optional reference file (Faculty & Admin)
-- `PUT /api/assignments/:id` - Edit assignment parameters (Faculty & Admin)
-- `DELETE /api/assignments/:id` - Delete an assignment (Faculty & Admin)
-
-### Submissions (`/api/submissions`)
-- `POST /api/submissions/:assignmentId` - Upload deliverable to Amazon S3 (Student)
-- `GET /api/submissions/my` - View student submission history & released grades
-- `GET /api/submissions/assignment/:id` - List submissions for grading (Faculty & Admin)
-- `POST /api/submissions/:id/grade` - Grade submission & save feedback (Faculty & Admin)
-- `GET /api/submissions/:id/download` - Generate secure Amazon S3 presigned download URL
-
-### Administration (`/api/admin`)
-- `GET /api/admin/stats` - Platform counts, S3 storage metrics & CloudWatch status
-- `GET /api/admin/users` - Search and filter user accounts
-- `POST /api/admin/users` - Provision an authorized faculty or student account
-- `PUT /api/admin/users/:id/status` - Activate or deactivate account access
-- `GET /api/admin/submissions` - System-wide submission oversight
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/api/auth/register` | Self-register as a Student | Public |
+| `POST` | `/api/auth/login` | Authenticate user & receive JWT | Public |
+| `GET` | `/api/auth/profile` | Retrieve active user profile | Any Token |
+| `GET` | `/api/assignments` | List assignments tailored to user role | Any Token |
+| `POST` | `/api/assignments` | Create assignment with optional reference file | Faculty / Admin |
+| `POST` | `/api/submissions/:assignmentId` | Submit deliverable to Amazon S3 | Student |
+| `POST` | `/api/submissions/:id/grade` | Record score & feedback, toggle release | Faculty / Admin |
+| `GET` | `/api/submissions/:id/download` | Generate secure S3 presigned download URL | Authorized User |
+| `GET` | `/api/admin/stats` | S3 counts, active users & system overview | Admin |
+| `GET` | `/api/health` | Service health, DB & AWS connectivity probe | Public |
 
 ---
 
-## 🧪 System Health Probe
-Verify server and AWS connectivity at any time:
-```bash
-curl http://localhost:5000/api/health
-```
-**Sample Output:**
-```json
-{
-  "status": "healthy",
-  "environment": "production",
-  "aws": {
-    "region": "us-east-1",
-    "s3_bucket": "aws-student-submission-portal-bucket",
-    "storage_mode": "amazon_s3",
-    "cloudwatch": "enabled"
-  },
-  "database": "postgres"
-}
-```
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).

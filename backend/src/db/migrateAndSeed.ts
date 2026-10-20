@@ -123,37 +123,6 @@ export async function migrateAndSeed(): Promise<void> {
     )
   `);
 
-  // Check and seed initial courses if missing
-  const existingCourses = await db.query('SELECT id FROM courses LIMIT 1');
-  if (existingCourses.rowCount === 0) {
-    const facultyUsers = await db.query("SELECT id, email FROM users WHERE role = 'faculty'");
-    const fMap = new Map(facultyUsers.rows.map((u: any) => [u.email, u.id]));
-    const fac1 = fMap.get('faculty@portal.edu') || 2;
-    const fac2 = fMap.get('grace.hopper@portal.edu') || 3;
-
-    await db.query(
-      `INSERT INTO courses (course_code, course_name, department, description, faculty_id)
-       VALUES 
-       ('CS-401', 'Advanced Cloud Engineering', 'Computer Science', 'Comprehensive design and implementation of resilient cloud architectures on Amazon Web Services (AWS).', $1),
-       ('CS-101', 'Fundamentals of Computer Science', 'Computer Science', 'Core principles of software systems, algorithms, computing architecture, and security.', $1),
-       ('CS-505', 'Distributed Systems & Elastic Scaling', 'Computer Science', 'Distributed consensus, microservices architecture, fault-tolerance, and high-performance cloud elasticity.', $1),
-       ('CS-302', 'Database Systems & Storage Internals', 'Computer Science', 'Relational database engines, ACID transactions, PostgreSQL indexing, and storage optimization.', $2)`,
-      [fac1, fac2]
-    );
-
-    // Enroll existing students into CS-401 and CS-101
-    const stuUsers = await db.query("SELECT id FROM users WHERE role = 'student'");
-    const cs401Res = await db.query("SELECT id FROM courses WHERE course_code = 'CS-401'");
-    if (cs401Res.rowCount > 0 && stuUsers.rowCount > 0) {
-      const cId = cs401Res.rows[0].id;
-      const insertSql = isPg
-        ? `INSERT INTO course_enrollments (course_id, student_id) VALUES ($1, $2) ON CONFLICT (course_id, student_id) DO NOTHING`
-        : `INSERT OR IGNORE INTO course_enrollments (course_id, student_id) VALUES ($1, $2)`;
-      for (const s of stuUsers.rows) {
-        await db.query(insertSql, [cId, s.id]);
-      }
-    }
-  }
 
   // Check if admin already exists
   const existingUsers = await db.query('SELECT id, email, role FROM users');
@@ -208,6 +177,39 @@ export async function migrateAndSeed(): Promise<void> {
     const facultyId2 = userMap.get('grace.hopper@portal.edu') || 3;
     const studentId1 = userMap.get('student@portal.edu') || 4;
     const studentId2 = userMap.get('sarah.chen@portal.edu') || 5;
+
+  // Check and seed initial courses if missing
+  const existingCourses = await db.query('SELECT id FROM courses LIMIT 1');
+  if (existingCourses.rowCount === 0) {
+    const facultyUsers = await db.query("SELECT id, email FROM users WHERE role = 'faculty'");
+    const fMap = new Map(facultyUsers.rows.map((u: any) => [u.email, u.id]));
+    const fac1 = fMap.get('faculty@portal.edu') || 2;
+    const fac2 = fMap.get('grace.hopper@portal.edu') || 3;
+
+    await db.query(
+      `INSERT INTO courses (course_code, course_name, department, description, faculty_id)
+       VALUES 
+       ('CS-401', 'Advanced Cloud Engineering', 'Computer Science', 'Comprehensive design and implementation of resilient cloud architectures on Amazon Web Services (AWS).', $1),
+       ('CS-101', 'Fundamentals of Computer Science', 'Computer Science', 'Core principles of software systems, algorithms, computing architecture, and security.', $1),
+       ('CS-505', 'Distributed Systems & Elastic Scaling', 'Computer Science', 'Distributed consensus, microservices architecture, fault-tolerance, and high-performance cloud elasticity.', $1),
+       ('CS-302', 'Database Systems & Storage Internals', 'Computer Science', 'Relational database engines, ACID transactions, PostgreSQL indexing, and storage optimization.', $2)`,
+      [fac1, fac1, fac1, fac2]
+    );
+
+    // Enroll existing students into CS-401 and CS-101
+    const stuUsers = await db.query("SELECT id FROM users WHERE role = 'student'");
+    const cs401Res = await db.query("SELECT id FROM courses WHERE course_code = 'CS-401'");
+    if (cs401Res.rowCount > 0 && stuUsers.rowCount > 0) {
+      const cId = cs401Res.rows[0].id;
+      const insertSql = isPg
+        ? `INSERT INTO course_enrollments (course_id, student_id) VALUES ($1, $2) ON CONFLICT (course_id, student_id) DO NOTHING`
+        : `INSERT OR IGNORE INTO course_enrollments (course_id, student_id) VALUES ($1, $2)`;
+      for (const s of stuUsers.rows) {
+        await db.query(insertSql, [cId, s.id]);
+      }
+    }
+  }
+
 
     // Seed Assignments
     const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();

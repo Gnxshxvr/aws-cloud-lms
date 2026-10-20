@@ -1,0 +1,195 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS Student Submission Portal - Ultra-Minimal & Free-Tier Friendly (1 EC2 + S3, zero RDS costs)'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: 'production'
+    Description: 'Deployment environment name'
+
+  KeyName:
+    Type: String
+    Default: ''
+    Description: 'Optional: Name of an existing EC2 KeyPair for SSH (leave empty to use browser-based EC2 Instance Connect)'
+
+  InstanceType:
+    Type: String
+    Default: 't3.micro'
+    AllowedValues:
+      - 't3.micro'
+      - 't2.micro'
+    Description: 'EC2 Instance Type (t3.micro and t2.micro are 100% Free Tier eligible)'
+
+  LatestUbuntuAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id'
+    Description: 'SSM Parameter path for latest Ubuntu 22.04 LTS AMI (resolves automatically in any AWS region)'
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, '']]
+
+Resources:
+  # =========================================================================
+  # 1. NETWORKING (Minimal VPC, 1 Subnet, Internet Gateway)
+  # =========================================================================
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName}-minimal-vpc'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName}-igw'
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: '10.0.1.0/24'
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName}-public-subnet'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName}-public-rt'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # =========================================================================
+  # 2. AMAZON S3 STORAGE (Free Tier: 5 GB object storage)
+  # =========================================================================
+  SubmissionS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'student-portal-bucket-${AWS::AccountId}-${AWS::Region}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD']
+            AllowedOrigins: ['*']
+            MaxAge: 3600
+
+  # =========================================================================
+  # 3. AWS IAM ROLE & INSTANCE PROFILE (S3 access only, no root keys)
+  # =========================================================================
+  AppInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
+                  - 's3:ListBucket'
+                Resource:
+                  - !GetAtt SubmissionS3Bucket.Arn
+                  - !Sub '${SubmissionS3Bucket.Arn}/*'
+
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref AppInstanceRole]
+
+  # =========================================================================
+  # 4. SECURITY GROUP (Port 80 for Web, Port 22 for SSH/Instance Connect)
+  # =========================================================================
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow HTTP (80) and SSH (22)'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: '0.0.0.0/0'
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName}-web-sg'
+
+  # =========================================================================
+  # 5. AMAZON EC2 INSTANCE (Free Tier: 750 hours/month)
+  # =========================================================================
+  AppEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref LatestUbuntuAmiId
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref 'AWS::NoValue']
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref WebServerSecurityGroup]
+      IamInstanceProfile: !Ref AppInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub '${EnvironmentName}-student-portal-ec2'
+
+Outputs:
+  EC2PublicIP:
+    Description: 'Public IP address of the EC2 Web Server'
+    Value: !GetAtt AppEC2Instance.PublicIp
+
+  S3BucketName:
+    Description: 'Amazon S3 Bucket for Submissions'
+    Value: !Ref SubmissionS3Bucket
+
+  PortalURL:
+    Description: 'URL to access your web portal'
+    Value: !Sub 'http://${AppEC2Instance.PublicIp}'
