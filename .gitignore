@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables — NEVER commit real secrets
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Database files
+data/
+*.sqlite
+*.sqlite3
+*.db
+
+# Uploads (local file fallback — use S3 in production)
+uploads/
+*.xlsx
+*.xls
+*.csv
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# AWS credentials (safety net)
+.aws/
+aws-credentials*
